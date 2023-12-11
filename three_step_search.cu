@@ -41,25 +41,25 @@ __device__ double mean_average_difference(int frame_width, int frame_height, int
     return difference;
 }
 
-__device__ void find_match(int frame_width, int frame_height, int frame_channels, int block_x, int block_y, int block_size, int step_size, uint8_t* frame1, uint8_t* frame2, int* vector){
+__device__ void find_match(int frame_width, int frame_height, int frame_channels, int block_x, int block_y, int search_loc_x, int search_loc_y, int block_size, int step_size, uint8_t* frame1, uint8_t* frame2, int* vector){
     // Base case, return block center as vector
     if(step_size == 0){
-        vector[0] = block_x;
-        vector[1] = block_y;
+        vector[0] = search_loc_x;
+        vector[1] = search_loc_y;
         return;
     }
 
     // Set center block as best match
-    int min_x = block_x;
-    int min_y = block_y;
+    int min_x = search_loc_x;
+    int min_y = search_loc_y;
     double min_diff = mean_average_difference(
         frame_width,
         frame_height,
         frame_channels,
         block_x,
         block_y,
-        block_x,
-        block_y,
+        search_loc_x,
+        search_loc_y,
         block_size,
         frame1,
         frame2
@@ -70,7 +70,7 @@ __device__ void find_match(int frame_width, int frame_height, int frame_channels
     for(int i = -step_size; i <= step_size; i += step_size){
         for(int j = -step_size; j <= step_size; j += step_size){
             if(i == 0 && j == 0) continue;
-            if(!checkBlockInBounds(block_x + j, block_y + i, block_size, frame_width, frame_height)) continue;
+            if(!checkBlockInBounds(search_loc_x + j, search_loc_y + i, block_size, frame_width, frame_height)) continue;
 
             double difference = mean_average_difference(
                 frame_width,
@@ -78,8 +78,8 @@ __device__ void find_match(int frame_width, int frame_height, int frame_channels
                 frame_channels,
                 block_x,
                 block_y,
-                block_x + j,
-                block_y + i,
+                search_loc_x + j,
+                search_loc_y + i,
                 block_size,
                 frame1,
                 frame2
@@ -87,14 +87,14 @@ __device__ void find_match(int frame_width, int frame_height, int frame_channels
 
             if(difference < min_diff || (difference == min_diff && (abs(j) + abs(i)) < (abs(min_x - block_x) + abs(min_y - block_y)))){
                 min_diff = difference;
-                min_x = block_x + j;
-                min_y = block_y + i;
+                min_x = search_loc_x + j;
+                min_y = search_loc_y + i;
             }
         }
     }
 
     // Call function recursively, with best match as block center, and half the step size
-    find_match(frame_width, frame_height, frame_channels, min_x, min_y, block_size, step_size / 2, frame1, frame2, vector);
+    find_match(frame_width, frame_height, frame_channels, block_x, block_y, min_x, min_y, block_size, step_size / 2, frame1, frame2, vector);
 }
 
 __global__ void find_match(int frame_width, int frame_height, int frame_channels, int block_size, int step_size, uint8_t* frame1, uint8_t* frame2, int* vectors){
@@ -108,6 +108,8 @@ __global__ void find_match(int frame_width, int frame_height, int frame_channels
             frame_width,
             frame_height,
             frame_channels,
+            INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size,
+            INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size,
             INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size,
             INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size,
             block_size,
