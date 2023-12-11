@@ -1,4 +1,3 @@
-#include "cuda.h"
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
@@ -87,17 +86,13 @@ __device__ bool find_match(int frame_width, int frame_height, int frame_channels
         }
     }
 
-    if(step_size == 1){
-        vector[0] = min_x;
-        vector[1] = min_y;
-        return;
-    }
+    vector[0] = min_x;
+    vector[1] = min_y;
 
-    if(min_x == block_x && min_y == block_y){
-        find_match(frame_width, frame_height, frame_channels, min_x, min_y, block_size, 1, frame1, frame2, vector);
-    } else {
-        find_match(frame_width, frame_height, frame_channels, min_x, min_y, block_size, step_size, frame1, frame2, vector);
-    }
+    if(min_x == block_x && min_y == block_y)
+        return true;
+    
+    return false;
 }
 
 __global__ void find_match(int frame_width, int frame_height, int frame_channels, int block_size, uint8_t* frame1, uint8_t* frame2, int* vectors){
@@ -107,14 +102,33 @@ __global__ void find_match(int frame_width, int frame_height, int frame_channels
 
     // Find matches for each block
     for(int i = start; i < end; i++){
+        vectors[i * 2] = INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size;
+        vectors[i * 2 + 1] = INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size;
+
+        int j = 0;
+        while(!find_match(
+            frame_width,
+            frame_height,
+            frame_channels,
+            vectors[i * 2],
+            vectors[i * 2 + 1],
+            block_size,
+            2,
+            frame1,
+            frame2,
+            &vectors[i * 2]
+        )){
+            if(j == 50) break;
+            j++;
+        }
         find_match(
             frame_width,
             frame_height,
             frame_channels,
-            INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size,
-            INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size,
+            vectors[i * 2],
+            vectors[i * 2 + 1],
             block_size,
-            2,
+            1,
             frame1,
             frame2,
             &vectors[i * 2]
@@ -126,7 +140,7 @@ int main(int argc, char** argv){
     // Check if correct number of inputs, or print correct usage and exit
     if(argc != 7){
         std::cout << "Usage:" << std::endl;
-        std::cout << "tss <video_in_path> <video_out_path> <block_size> <num_blocks> <num_threads> <frames_limit>" << std::endl;
+        std::cout << "ds <video_in_path> <video_out_path> <block_size> <num_blocks> <num_threads> <frames_limit>" << std::endl;
         exit(1);
     }
 
@@ -165,12 +179,10 @@ int main(int argc, char** argv){
     cudaMalloc(&d_frame, sizeof(uint8_t) * frame_width * frame_height * frame_channels);
     cudaMalloc(&d_frameNext, sizeof(uint8_t) * frame_width * frame_height * frame_channels);
 
-    cuCtxSetLimit(CU_LIMIT_STACK_SIZE, 48000);
-
     double timeElapsed;
     int idx = 0;
     while(frameNext != nullptr && idx < frames_limit){
-        std::cout << idx << std::endl;
+        // std::cout << idx << std::endl;
         // Upload the two current frames to GPU
         cudaMemcpy(d_frame, frame->isContinuous() ? frame->data : frame->clone().data, sizeof(uint8_t) * frame_width * frame_height * frame_channels, cudaMemcpyHostToDevice);
         cudaMemcpy(d_frameNext, frameNext->isContinuous() ? frameNext->data : frameNext->clone().data, sizeof(uint8_t) * frame_width * frame_height * frame_channels, cudaMemcpyHostToDevice);
@@ -182,7 +194,6 @@ int main(int argc, char** argv){
         // Execute kernel call and synchronize
         find_match<<<num_blocks, num_threads>>>(frame_width, frame_height, frame_channels, block_size, d_frame, d_frameNext, d_vectors);
         cudaDeviceSynchronize();
-        std::cout << cudaGetLastError() << std::endl;
 
         // End timer and record time
         timer.Stop();

@@ -1,5 +1,5 @@
 CXX = nvcc
-CXXFLAGS = -g -G
+CXXFLAGS = 
 SRC_DIR = .
 OBJ_DIR = out/obj
 BIN_DIR = out/
@@ -19,7 +19,7 @@ tss: $(OBJECTS)
 	$(CXX) $(CXXFLAGS) three_step_search.cu $^ -o $(BIN_DIR)/$@ -I/usr/include/opencv4 `pkg-config --libs opencv4`
 
 ds: $(OBJECTS)
-	$(CXX) $(CXXFLAGS) diamond_search.cu $^ -o $(BIN_DIR)/$@ -I/usr/include/opencv4 `pkg-config --libs opencv4` -lcuda
+	$(CXX) $(CXXFLAGS) diamond_search.cu $^ -o $(BIN_DIR)/$@ -I/usr/include/opencv4 `pkg-config --libs opencv4`
 
 # Rule to make the necessary directories
 directories:
