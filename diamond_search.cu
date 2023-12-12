@@ -16,6 +16,8 @@
 
 #define XYZ_TO_I(x, y, z, frame_width, frame_height, frame_channels) ((x) * (frame_channels) + (y) * (frame_channels) * (frame_width) + (z))
 
+
+// This function checks if all of the pixels of a block are within the bounds of a frame.
 __device__ inline bool checkBlockInBounds(int block_x, int block_y, int block_size, int width, int height){
     return block_x >= 0 &&
            block_x + block_size < width &&
@@ -23,6 +25,9 @@ __device__ inline bool checkBlockInBounds(int block_x, int block_y, int block_si
            block_y + block_size < height;
 }
 
+
+// This function computes the difference between two blocks in two different frames using the
+// mean average difference method.
 __device__ double mean_average_difference(int frame_width, int frame_height, int frame_channels, int block1_x, int block1_y, int block2_x, int block2_y, int block_size, uint8_t* frame1, uint8_t* frame2){
     double difference = 0;
     for(int c = 0; c < frame_channels; c++){
