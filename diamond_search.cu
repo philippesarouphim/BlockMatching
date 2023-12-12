@@ -107,6 +107,7 @@ __global__ void find_match(int frame_width, int frame_height, int frame_channels
         vectors[i * 2] = block_x;
         vectors[i * 2 + 1] = block_y;
 
+        // Large Diamond Search Pattern
         int j = 0;
         while(!find_match(
             frame_width,
@@ -125,6 +126,8 @@ __global__ void find_match(int frame_width, int frame_height, int frame_channels
             if(j == 50) break;
             j++;
         }
+
+        // Small Diamond Search Pattern
         find_match(
             frame_width,
             frame_height,
@@ -188,7 +191,6 @@ int main(int argc, char** argv){
     double timeElapsed;
     int idx = 0;
     while(frameNext != nullptr && idx < frames_limit){
-        // std::cout << idx << std::endl;
         // Upload the two current frames to GPU
         cudaMemcpy(d_frame, frame->isContinuous() ? frame->data : frame->clone().data, sizeof(uint8_t) * frame_width * frame_height * frame_channels, cudaMemcpyHostToDevice);
         cudaMemcpy(d_frameNext, frameNext->isContinuous() ? frameNext->data : frameNext->clone().data, sizeof(uint8_t) * frame_width * frame_height * frame_channels, cudaMemcpyHostToDevice);
@@ -210,7 +212,6 @@ int main(int argc, char** argv){
 
         // Display arrows on the frame and write it to output video
         for(int i = 0; i < vectors_size / 2; i++){
-            // std::cout << "(i: " << i << ", " << "(" << INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size << ", " << INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size  << "), " << "(" << vectors[i * 2] << ", " << vectors[i * 2 + 1] << "))" << std::endl;
             cv::arrowedLine(*frame,
                 cv::Point(INDEX_TO_BLOCK_X(i, frameSize.width, block_size) * block_size, INDEX_TO_BLOCK_Y(i, frameSize.width, block_size) * block_size),
                 cv::Point(vectors[i * 2], vectors[i * 2 + 1]),

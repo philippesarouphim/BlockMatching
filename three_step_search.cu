@@ -189,7 +189,6 @@ int main(int argc, char** argv){
 
         // Display arrows on the frame and write it to output video
         for(int i = 0; i < vectors_size / 2; i++){
-            // std::cout << "(i: " << i << ", " << "(" << INDEX_TO_BLOCK_X(i, frame_width, block_size) * block_size << ", " << INDEX_TO_BLOCK_Y(i, frame_width, block_size) * block_size  << "), " << "(" << vectors[i * 2] << ", " << vectors[i * 2 + 1] << "))" << std::endl;
             cv::arrowedLine(*frame,
                 cv::Point(INDEX_TO_BLOCK_X(i, frameSize.width, block_size) * block_size, INDEX_TO_BLOCK_Y(i, frameSize.width, block_size) * block_size),
                 cv::Point(vectors[i * 2], vectors[i * 2 + 1]),
